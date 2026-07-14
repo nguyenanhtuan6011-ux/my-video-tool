@@ -20,10 +20,9 @@ if not hasattr(Image, 'ANTIALIAS'):
 
 st.set_page_config(page_title="Video Creator", layout="wide")
 
-# --- Khởi tạo Groq ---
-# --- Khởi tạo Groq (Dán trực tiếp) ---
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 client = Groq(api_key=GROQ_API_KEY)
+
 
 
 # --- Session state ---
