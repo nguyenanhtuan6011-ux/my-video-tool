@@ -100,17 +100,19 @@ else:
         with cols[1]: st.write(f"**{item['name']}**")
         with cols[2]:
             if item["type"] == "image":
-                item["duration"] = st.number_input("Duration (s)", min_value=0.5, max_value=60.0, value=float(item["duration"]), step=0.5, key=f"d_{idx}")
+                item["duration"] = st.number_input("Duration (s)", min_value=0.5, max_value=60.0, value=float(item["duration"]), step=0.5, key=f"dur_{idx}")
         with cols[3]:
-            if st.button("↑", key=f"u_{idx}") and idx > 0:
+            # Đã sửa key ở đây
+            if st.button("↑", key=f"up_{idx}") and idx > 0:
                 st.session_state.media_items[idx-1], st.session_state.media_items[idx] = st.session_state.media_items[idx], st.session_state.media_items[idx-1]
                 st.rerun()
         with cols[4]:
-            if st.button("↓", key=f"d_{idx}") and idx < len(st.session_state.media_items) - 1:
+            # Đã sửa key ở đây
+            if st.button("↓", key=f"down_{idx}") and idx < len(st.session_state.media_items) - 1:
                 st.session_state.media_items[idx+1], st.session_state.media_items[idx] = st.session_state.media_items[idx], st.session_state.media_items[idx+1]
                 st.rerun()
         with cols[5]:
-            if st.button("🗑", key=f"r_{idx}"):
+            if st.button("🗑", key=f"rem_{idx}"):
                 st.session_state.media_items.pop(idx)
                 st.rerun()
 
