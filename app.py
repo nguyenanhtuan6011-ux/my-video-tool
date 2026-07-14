@@ -1,16 +1,15 @@
-import streamlit as st
-from groq import Groq
 import os
 import tempfile
 import shutil
 from pathlib import Path
 from PIL import Image
+import streamlit as st
+from groq import Groq
 
-# Sửa lỗi ANTIALIAS cho phiên bản Pillow mới
+# Sửa lỗi ANTIALIAS
 if not hasattr(Image, 'ANTIALIAS'):
     Image.ANTIALIAS = Image.Resampling.LANCZOS
 
-import streamlit as st
 from moviepy.editor import (
     ImageClip,
     VideoFileClip,
@@ -20,6 +19,7 @@ from moviepy.editor import (
     concatenate_videoclips,
     afx,
 )
+
 
 st.set_page_config(page_title="Video Creator", layout="wide")
 
