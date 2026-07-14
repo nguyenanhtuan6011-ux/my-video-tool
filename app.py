@@ -1,15 +1,9 @@
 import os
 import tempfile
-import shutil
-from pathlib import Path
-from PIL import Image
 import streamlit as st
+from PIL import Image
 from groq import Groq
-
-# Sửa lỗi ANTIALIAS
-if not hasattr(Image, 'ANTIALIAS'):
-    Image.ANTIALIAS = Image.Resampling.LANCZOS
-
+from pathlib import Path
 from moviepy.editor import (
     ImageClip,
     VideoFileClip,
@@ -20,12 +14,19 @@ from moviepy.editor import (
     afx,
 )
 
+# Sửa lỗi ANTIALIAS cho phiên bản Pillow mới
+if not hasattr(Image, 'ANTIALIAS'):
+    Image.ANTIALIAS = Image.Resampling.LANCZOS
 
 st.set_page_config(page_title="Video Creator", layout="wide")
 
-# ---------------------------------------------------------------------------
-# Session state setup
-# ---------------------------------------------------------------------------
+# --- Khởi tạo Groq ---
+if "GROQ_API_KEY" in st.secrets:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+else:
+    client = None
+
+# --- Session state ---
 if "media_items" not in st.session_state:
     st.session_state.media_items = []
 
@@ -49,7 +50,6 @@ def save_uploaded_file(uploaded_file) -> str:
 def fit_clip_to_resolution(clip, target_w, target_h):
     clip_ratio = clip.w / clip.h
     target_ratio = target_w / target_h
-
     if clip_ratio > target_ratio:
         resized = clip.resize(height=target_h)
         x_center = resized.w / 2
@@ -60,26 +60,35 @@ def fit_clip_to_resolution(clip, target_w, target_h):
         resized = resized.crop(x_center=resized.w / 2, width=target_w, y_center=y_center, height=target_h)
     return resized
 
-# ---------------------------------------------------------------------------
-# Sidebar & Main UI
-# ---------------------------------------------------------------------------
+# --- Sidebar & AI ---
 st.sidebar.title("Video Settings")
+st.sidebar.subheader("AI Assistant (Groq)")
+user_prompt = st.sidebar.text_input("Gợi ý ý tưởng video:")
+if st.sidebar.button("Generate title with AI"):
+    if client:
+        with st.sidebar.spinner("AI is thinking..."):
+            completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": f"Viết tiêu đề ngắn cho: {user_prompt}"}],
+                model="llama3-8b-8192",
+            )
+            st.sidebar.info(completion.choices[0].message.content)
+    else:
+        st.sidebar.error("API Key not found in secrets!")
+
+st.sidebar.markdown("---")
 resolution_label = st.sidebar.selectbox("Output resolution", list(RESOLUTIONS.keys()))
 target_w, target_h = RESOLUTIONS[resolution_label]
-fps = st.sidebar.slider("Frame rate (fps)", min_value=10, max_value=60, value=30)
+fps = st.sidebar.slider("Frame rate (fps)", 10, 60, 30)
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("Title card (optional)")
 title_text = st.sidebar.text_input("Title text", value="")
-title_duration = st.sidebar.slider("Title duration (seconds)", min_value=1, max_value=10, value=3)
+title_duration = st.sidebar.slider("Title duration (s)", 1, 10, 3)
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("Background music (optional)")
-audio_file = st.sidebar.file_uploader("Upload an audio track", type=["mp3", "wav", "m4a", "aac"])
-audio_volume = st.sidebar.slider("Music volume", min_value=0.0, max_value=1.0, value=0.5)
+audio_file = st.sidebar.file_uploader("Upload audio", type=["mp3", "wav", "m4a", "aac"])
+audio_volume = st.sidebar.slider("Music volume", 0.0, 1.0, 0.5)
 
+# --- Main UI ---
 st.title("🎬 Video Creator")
-uploaded_files = st.file_uploader("Upload images or video clips", type=["png", "jpg", "jpeg", "mp4", "mov", "avi", "webm"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload images or video clips", accept_multiple_files=True)
 
 if uploaded_files:
     existing_names = {item["name"] for item in st.session_state.media_items}
@@ -88,29 +97,24 @@ if uploaded_files:
             path = save_uploaded_file(uploaded_file)
             ext = Path(uploaded_file.name).suffix.lower()
             media_type = "video" if ext in (".mp4", ".mov", ".avi", ".webm") else "image"
-            st.session_state.media_items.append({"name": uploaded_file.name, "type": media_type, "path": path, "duration": 3.0 if media_type == "image" else None})
+            st.session_state.media_items.append({"name": uploaded_file.name, "type": media_type, "path": path, "duration": 3.0})
 
 st.markdown("### Timeline")
 if not st.session_state.media_items:
-    st.info("Upload at least one image or video clip to build your timeline.")
+    st.info("Upload at least one image or video clip.")
 else:
     for idx, item in enumerate(st.session_state.media_items):
         cols = st.columns([1, 3, 2, 1, 1, 1])
-        with cols[0]:
-            if item["type"] == "image": st.image(item["path"], width=90)
-            else: st.video(item["path"])
+        with cols[0]: st.image(item["path"], width=90) if item["type"] == "image" else st.video(item["path"])
         with cols[1]: st.write(f"**{item['name']}**")
-        with cols[2]:
-            if item["type"] == "image":
-                item["duration"] = st.number_input("Duration (s)", min_value=0.5, max_value=60.0, value=float(item["duration"]), step=0.5, key=f"dur_{idx}")
+        with cols[2]: 
+            if item["type"] == "image": item["duration"] = st.number_input("Duration", 0.5, 60.0, float(item["duration"]), key=f"d_{idx}")
         with cols[3]:
-            # Đã sửa key ở đây
             if st.button("↑", key=f"up_{idx}") and idx > 0:
                 st.session_state.media_items[idx-1], st.session_state.media_items[idx] = st.session_state.media_items[idx], st.session_state.media_items[idx-1]
                 st.rerun()
         with cols[4]:
-            # Đã sửa key ở đây
-            if st.button("↓", key=f"down_{idx}") and idx < len(st.session_state.media_items) - 1:
+            if st.button("↓", key=f"down_{idx}") and idx < len(st.session_state.media_items)-1:
                 st.session_state.media_items[idx+1], st.session_state.media_items[idx] = st.session_state.media_items[idx], st.session_state.media_items[idx+1]
                 st.rerun()
         with cols[5]:
@@ -118,12 +122,7 @@ else:
                 st.session_state.media_items.pop(idx)
                 st.rerun()
 
-    if st.button("Clear all"):
-        st.session_state.media_items = []
-        st.rerun()
-
-st.markdown("### Export")
-if st.button("🎞️ Generate video", type="primary", disabled=not st.session_state.media_items):
+if st.button("🎞️ Generate video"):
     with st.spinner("Building your video..."):
         try:
             clips = []
@@ -139,8 +138,7 @@ if st.button("🎞️ Generate video", type="primary", disabled=not st.session_s
             output_path = WORKDIR / "my_video.mp4"
             final.write_videofile(str(output_path), fps=fps, codec="libx264", audio_codec="aac", logger=None)
             with open(output_path, "rb") as f:
-                video_bytes = f.read()
+                st.download_button("⬇️ Download video", data=f.read(), file_name="my_video.mp4", mime="video/mp4")
             st.success("Video generated!")
-            st.download_button("⬇️ Download video", data=video_bytes, file_name="my_video.mp4", mime="video/mp4")
-        except Exception as exc:
-            st.error(f"Something went wrong: {exc}")
+        except Exception as e:
+            st.error(f"Error: {e}")
