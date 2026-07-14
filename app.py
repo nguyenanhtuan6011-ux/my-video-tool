@@ -68,7 +68,8 @@ if st.sidebar.button("Generate title with AI"):
         with st.sidebar.spinner("AI is thinking..."):
             completion = client.chat.completions.create(
                 messages=[{"role": "user", "content": f"Viết tiêu đề ngắn cho: {user_prompt}"}],
-                model="llama3-8b-8192",
+                model="llama-3.1-8b-instant",
+
             )
             st.sidebar.info(completion.choices[0].message.content)
     else:
