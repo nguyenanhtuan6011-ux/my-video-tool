@@ -21,10 +21,10 @@ if not hasattr(Image, 'ANTIALIAS'):
 st.set_page_config(page_title="Video Creator", layout="wide")
 
 # --- Khởi tạo Groq ---
-if "GROQ_API_KEY" in st.secrets:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-else:
-    client = None
+# --- Khởi tạo Groq (Dán trực tiếp) ---
+GROQ_API_KEY = "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"
+client = Groq(api_key=GROQ_API_KEY)
+
 
 # --- Session state ---
 if "media_items" not in st.session_state:
