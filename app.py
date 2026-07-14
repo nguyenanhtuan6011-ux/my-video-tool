@@ -89,26 +89,27 @@ audio_volume = st.sidebar.slider("Music volume", 0.0, 1.0, 0.5)
 # --- Main UI ---
 st.title("🎬 Video Creator")
 uploaded_files = st.file_uploader("Upload images or video clips", accept_multiple_files=True)
-
-if uploaded_files:
-    existing_names = {item["name"] for item in st.session_state.media_items}
-    for uploaded_file in uploaded_files:
-        if uploaded_file.name not in existing_names:
-            path = save_uploaded_file(uploaded_file)
-            ext = Path(uploaded_file.name).suffix.lower()
-            media_type = "video" if ext in (".mp4", ".mov", ".avi", ".webm") else "image"
-            st.session_state.media_items.append({"name": uploaded_file.name, "type": media_type, "path": path, "duration": 3.0})
-
 st.markdown("### Timeline")
 if not st.session_state.media_items:
     st.info("Upload at least one image or video clip.")
 else:
     for idx, item in enumerate(st.session_state.media_items):
         cols = st.columns([1, 3, 2, 1, 1, 1])
-        with cols[0]: st.image(item["path"], width=90) if item["type"] == "image" else st.video(item["path"])
-        with cols[1]: st.write(f"**{item['name']}**")
+        
+        # Sửa cấu trúc tại đây
+        with cols[0]:
+            if item["type"] == "image":
+                st.image(item["path"], width=90)
+            else:
+                st.video(item["path"])
+                
+        with cols[1]: 
+            st.write(f"**{item['name']}**")
+            
         with cols[2]: 
-            if item["type"] == "image": item["duration"] = st.number_input("Duration", 0.5, 60.0, float(item["duration"]), key=f"d_{idx}")
+            if item["type"] == "image": 
+                item["duration"] = st.number_input("Duration", 0.5, 60.0, float(item["duration"]), key=f"d_{idx}")
+        
         with cols[3]:
             if st.button("↑", key=f"up_{idx}") and idx > 0:
                 st.session_state.media_items[idx-1], st.session_state.media_items[idx] = st.session_state.media_items[idx], st.session_state.media_items[idx-1]
@@ -117,6 +118,12 @@ else:
             if st.button("↓", key=f"down_{idx}") and idx < len(st.session_state.media_items)-1:
                 st.session_state.media_items[idx+1], st.session_state.media_items[idx] = st.session_state.media_items[idx], st.session_state.media_items[idx+1]
                 st.rerun()
+        with cols[5]:
+            if st.button("🗑", key=f"rem_{idx}"):
+                st.session_state.media_items.pop(idx)
+                st.rerun()
+
+
         with cols[5]:
             if st.button("🗑", key=f"rem_{idx}"):
                 st.session_state.media_items.pop(idx)
